@@ -251,7 +251,11 @@ class LazySubstituteMemory(object):
         self._substitutions = substitutions
 
     def __getitem__(self, index):
-        raise NotImplemented()
+        r = self._memory[index]
+        if isinstance(index, slice):
+            return [x if concrete(x) else z3.substitute(x, self._substitutions) for x in r]
+        else:
+            return r if concrete(r) else z3.substitute(r, self._substitutions)
 
 
 class LazySubstituteStack(object):

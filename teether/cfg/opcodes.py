@@ -160,10 +160,11 @@ potentially_user_controlled = ['ORIGIN', 'CALLER', 'CALLVALUE', 'CALLDATALOAD', 
 
 external_data = ['RETURNDATACOPY', 'RETURNDATASIZE', 'EXTCODESIZE', 'EXTCODECOPY']
 
-CRITICAL = ['CALL', 'DELEGATECALL', 'CALLCODE', 'SELFDESTRUCT']
+CRITICAL = ['CALL', 'DELEGATECALL', 'CALLCODE', 'SELFDESTRUCT','LOG3']
 
 # map denoting attacker controlled stack arguments
 CRITICAL_ARGS = {
+    'LOG3': [4],
     'CALL': [1],
     'DELEGATECALL': [1],
     'CALLCODE': [1],
