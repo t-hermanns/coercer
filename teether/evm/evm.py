@@ -667,6 +667,8 @@ def run_symbolic(program, path, code=None, state=None, ctx=None, inclusive=False
                     stk.append(v.as_long())
                 else:
                     stk.append(v)
+                sload = z3.BitVec('SLOAD_%x_%d' % (instruction_count, xid), 256)
+                constraints.append(sload == s0)
             elif op == 'SSTORE':
                 s0, s1 = stk.pop(), stk.pop()
                 storage[s0] = s1

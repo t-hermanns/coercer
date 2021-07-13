@@ -57,10 +57,13 @@ class CombinedSymbolicResult(object):
         self._sha_constraints = None
         self._states = None
 
-    def combine(self, storage=dict(), initial_balance=None):
+    def combine(self, storage=dict(), initial_balance=None, symbolic_run=False):
         extra_subst = []
 
-        storage_base = z3.Array('STORAGE_BASE', z3.BitVecSort(256), z3.BitVecSort(256))
+        if symbolic_run:
+            storage_base = z3.Array('STORAGE_BASE', z3.BitVecSort(256), z3.BitVecSort(256))
+        else:
+            storage_base = z3.K(z3.BitVecSort(256), z3.BitVecVal(0, 256))
         for k, v in storage.items():
             storage_base = z3.Store(storage_base, k, v)
         for result in self.results:
