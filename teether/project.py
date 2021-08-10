@@ -10,6 +10,8 @@ from teether.explorer.forward import ForwardExplorer
 from teether.slicing import interesting_slices, slice_to_program
 from teether.util.z3_extra_util import concrete
 
+from teether.memory import resolve_all_memory
+
 
 def load(path):
     with open(path) as infile:
@@ -66,7 +68,7 @@ class Project(object):
     def run_symbolic(self, path, inclusive=False):
         return run_symbolic(self.prg, path, self.code, inclusive=inclusive)
 
-    def get_constraints(self, instructions, args=None, inclusive=False, find_sstore=False):
+    def get_constraints(self, instructions, args=None, inclusive=False, find_sstore=False, find_memory=False):
         # only check instructions that have a chance to reach root
         instructions = [ins for ins in instructions if 0 in ins.bb.ancestors | {ins.bb.start}]
         if not instructions:
@@ -81,6 +83,13 @@ class Project(object):
             if find_sstore:
                 sstores = self.cfg.filter_ins('SSTORE', reachable=True)
                 slices = [(sstore, ins) for sstore in sstores for ins in instructions]
+            # Are we looking for critical memory args?
+            elif find_memory:
+                logging.debug('Resolving memory...')
+                memory_info = resolve_all_memory(self.cfg, self.code)
+                logging.debug('Resolving memory done!')
+                slices = [s + (ins,) for ins in instructions for s in
+                          interesting_slices(ins, reachable=True, memory_info=memory_info)]
             else:
                 slices = [(ins,) for ins in instructions]
         for path in exp.find(slices, avoid=external_data):

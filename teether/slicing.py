@@ -167,6 +167,6 @@ def backward_slice(ins, taint_args=None, memory_info=None, initial_gas=10, must_
         return filtered_slices
 
 
-def interesting_slices(instruction, args=None, reachable=False):
-    return [bs for bs in backward_slice(instruction, args, reachable=reachable) if any(
-        ins.name in potentially_user_controlled for ins in bs)]
+def interesting_slices(instruction, args=None, reachable=False, memory_info=None):
+    return [bs for bs in backward_slice(instruction, args, reachable=reachable, memory_info=memory_info)
+            if any(ins.name in potentially_user_controlled for ins in bs)]
