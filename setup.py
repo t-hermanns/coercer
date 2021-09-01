@@ -5,8 +5,9 @@ setup(
     version='0.1.9',
     packages=find_packages(),
     install_requires=[
-        'z3-solver>=4.8.5.0',
-        'pysha3>=1.0.2'
+        'z3-solver==4.8.5.0',
+        'pysha3>=1.0.2',
+        'web3==5.23.1'
     ],
     scripts=[
         'bin/asm.py',
