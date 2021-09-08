@@ -76,18 +76,18 @@ class Project(object):
         imap = {ins.addr: ins for ins in instructions}
 
         exp = ForwardExplorer(self.cfg)
-        if args:
+        # Are we looking for critical memory args?
+        if find_memory:
+            memory_info = resolve_all_memory(self.cfg, self.code)
+            slices = [s + (ins,) for ins in instructions for s in
+                      interesting_slices(ins, args, reachable=True, memory_info=memory_info)]
+        elif args:
             slices = [s + (ins,) for ins in instructions for s in interesting_slices(ins, args, reachable=True)]
         else:
             # Are we looking for a state-changing path?
             if find_sstore:
                 sstores = self.cfg.filter_ins('SSTORE', reachable=True)
                 slices = [(sstore, ins) for sstore in sstores for ins in instructions]
-            # Are we looking for critical memory args?
-            elif find_memory:
-                memory_info = resolve_all_memory(self.cfg, self.code)
-                slices = [s + (ins,) for ins in instructions for s in
-                          interesting_slices(ins, reachable=True, memory_info=memory_info)]
             else:
                 slices = [(ins,) for ins in instructions]
         for path in exp.find(slices, avoid=external_data):
