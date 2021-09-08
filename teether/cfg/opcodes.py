@@ -158,14 +158,15 @@ storage_reads = {'SLOAD': -1}
 potentially_user_controlled = ['ORIGIN', 'CALLER', 'CALLVALUE', 'CALLDATALOAD', 'CALLDATASIZE', 'CALLDATACOPY',
                                'EXTCODESIZE', 'EXTCODECOPY', 'MLOAD', 'SLOAD']
 
-external_data = ['RETURNDATACOPY', 'RETURNDATASIZE', 'EXTCODESIZE', 'EXTCODECOPY']
+# external_data = ['RETURNDATACOPY', 'RETURNDATASIZE', 'EXTCODESIZE', 'EXTCODECOPY']
+external_data = ['RETURNDATACOPY', 'RETURNDATASIZE', 'EXTCODECOPY']
 
 CRITICAL = ['CALL', 'DELEGATECALL', 'CALLCODE', 'SELFDESTRUCT','LOG3']
 
 # map denoting attacker controlled stack arguments
 CRITICAL_ARGS = {
     'LOG3': [4],
-    'CALL': [1],
+    'CALL': [3, 4],
     'DELEGATECALL': [1],
     'CALLCODE': [1],
     'SELFDESTRUCT': [0]

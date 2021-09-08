@@ -28,7 +28,7 @@ class Context(object):
         self.storage = defaultdict(int)
 
 
-def run(program, state=None, code=None, ctx=None, check_initialized=False, trace=False):
+def run(program, state=None, code=None, ctx=None, check_initialized=False, trace=False, sha_save=None, stor_save=None):
     ctx = ctx or Context()
     state = state or EVMState(code)
     state.memory.set_enforcing(check_initialized)
@@ -135,6 +135,9 @@ def run(program, state=None, code=None, ctx=None, check_initialized=False, trace
                 mem.extend(s0, s1)
                 data = teether.util.utils.bytearray_to_bytestr(mem[s0: s0 + s1])
                 stk.append(teether.util.utils.big_endian_to_int(teether.util.utils.sha3(data)))
+                if sha_save is not None:
+                    sha_save[teether.util.utils.bytes_to_int(data)] = \
+                        teether.util.utils.bytes_to_int(teether.util.utils.sha3(data))
             elif op == 'ADDRESS':
                 stk.append(ctx.address)
             elif op == 'BALANCE':
@@ -214,6 +217,8 @@ def run(program, state=None, code=None, ctx=None, check_initialized=False, trace
             elif op == 'SLOAD':
                 s0 = stk.pop()
                 stk.append(ctx.storage[s0])
+                if stor_save is not None:
+                    stor_save.append(s0)
             elif op == 'SSTORE':
                 s0, s1 = stk.pop(), stk.pop()
                 ctx.storage[s0] = s1

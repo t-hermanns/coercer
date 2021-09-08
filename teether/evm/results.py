@@ -44,23 +44,24 @@ class SymbolicResult(object):
 
 
 class CombinedSymbolicResult(object):
-    def __init__(self):
+    def __init__(self, symbolic_storage=False):
         self.results = []
         self._constraints = None
         self._sha_constraints = None
         self._states = None
         self._idx_dict = None
         self.calls = 0
+        self.symbolic_storage = symbolic_storage
 
     def _reset(self):
         self._constraints = None
         self._sha_constraints = None
         self._states = None
 
-    def combine(self, storage=dict(), initial_balance=None, symbolic_run=False):
+    def combine(self, storage=dict(), initial_balance=None):
         extra_subst = []
 
-        if symbolic_run:
+        if self.symbolic_storage:
             storage_base = z3.Array('STORAGE_BASE', z3.BitVecSort(256), z3.BitVecSort(256))
         else:
             storage_base = z3.K(z3.BitVecSort(256), z3.BitVecVal(0, 256))
