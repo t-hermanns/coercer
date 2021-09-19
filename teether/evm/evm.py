@@ -136,8 +136,8 @@ def run(program, state=None, code=None, ctx=None, check_initialized=False, trace
                 data = teether.util.utils.bytearray_to_bytestr(mem[s0: s0 + s1])
                 stk.append(teether.util.utils.big_endian_to_int(teether.util.utils.sha3(data)))
                 if sha_save is not None:
-                    sha_save[teether.util.utils.bytes_to_int(data)] = \
-                        teether.util.utils.bytes_to_int(teether.util.utils.sha3(data))
+                    sha_save[z3.BitVecVal(teether.util.utils.bytes_to_int(teether.util.utils.sha3(data)), 256)] = \
+                        z3.BitVecVal(teether.util.utils.bytes_to_int(data),(s1-s0)*8)
             elif op == 'ADDRESS':
                 stk.append(ctx.address)
             elif op == 'BALANCE':

@@ -102,22 +102,22 @@ def symread_substitute(x, subst):
         return new_symread
 
 
-def check_model_and_resolve(constraints, sha_constraints):
+def check_model_and_resolve(constraints, sha_constraints, sha_calcs=None):
     try:
-        return check_model_and_resolve_inner(constraints, sha_constraints)
+        return check_model_and_resolve_inner(constraints, sha_constraints, sha_calcs)
     except UnresolvedConstraints:
         sha_ids = {sha.get_id() for sha in sha_constraints.keys()}
         constraints = [simplify_non_const_hashes(c, sha_ids) for c in constraints]
-        return check_model_and_resolve_inner(constraints, sha_constraints, second_try=True)
+        return check_model_and_resolve_inner(constraints, sha_constraints, sha_calcs, second_try=True)
 
 
-def check_model_and_resolve_inner(constraints, sha_constraints, second_try=False):
+def check_model_and_resolve_inner(constraints, sha_constraints, sha_calcs=None, second_try=False):
     # logging.debug('-' * 32)
     extra_constraints = []
     s = z3.SolverFor("QF_ABV")
     s.add(constraints)
     if s.check() != z3.sat:
-        raise IntractablePath("CHECK", "MODEL")
+       raise IntractablePath("CHECK", "MODEL")
     else:
         if not sha_constraints:
             return s.model()
@@ -153,7 +153,86 @@ def check_model_and_resolve_inner(constraints, sha_constraints, second_try=False
         else:
             break
 
-    return check_and_model(constraints + extra_constraints, sha_constraints, ne_constraints, second_try=second_try)
+    unresolved = []
+    try:
+        return check_and_model(constraints + extra_constraints, sha_constraints, ne_constraints, second_try=second_try)
+    except IntractablePath:
+        pass
+    except UnresolvedConstraints as ex:
+        unresolved = ex.unresolved
+
+    if sha_calcs and sha_constraints:
+        solvable_subst = dict()
+        for (conc_hash, conc_val), (sym_hash, sym_val) in itertools.product(sha_calcs.items(), sha_constraints.items()):
+            subst = [(sym_hash, conc_hash),(sym_val,conc_val)]
+            n_constraints = [z3.simplify(z3.substitute(c, subst)) for c in constraints]
+            n_ne_constraints = [z3.simplify(z3.substitute(c, subst)) for c in ne_constraints]
+            n_extra_constraints = [z3.simplify(z3.substitute(c, subst)) for c in extra_constraints]
+            n_extra_constraints.append(symread_eq(symread_substitute(sym_val, [(sym_hash, conc_hash)]), conc_val))
+            n_extra_constraints.append(sym_hash == conc_hash)
+
+            n_sha_constraints = {z3.substitute(sha, subst): symread_substitute(sha_value, subst) for
+                               sha, sha_value in
+                               sha_constraints.items() if sha is not sym_hash}
+
+            s = z3.SolverFor("QF_ABV")
+            s.add(n_constraints + n_ne_constraints + n_extra_constraints)
+
+            if s.check() == z3.unsat:
+                continue
+            try:
+                return check_and_model(n_constraints + n_extra_constraints, n_sha_constraints, n_ne_constraints, second_try=second_try)
+            except IntractablePath:
+                pass
+            except UnresolvedConstraints as ex:
+                unresolved = ex.unresolved
+
+            solvable_subst[frozenset([(sym_hash, conc_hash)])] = (n_constraints, n_ne_constraints, n_extra_constraints, n_sha_constraints)
+
+        n = 2
+        while n <= len(sha_constraints) and solvable_subst:
+            #print(n, solvable_subst.keys())
+            next_solvable_subst = dict()
+            for a, *b in itertools.combinations(solvable_subst,n):
+                union = a.union(*b)
+                if len(union) == n and not a.intersection(*b):
+                    sym_hash, conc_hash = set(union.difference(a)).pop()
+                    sym_val, conc_val = sha_constraints[sym_hash], sha_calcs[conc_hash]
+                    subst = [(sym_hash, conc_hash),(sym_val,conc_val)]
+                    constraints, ne_constraints, n_extra_constraints, n_sha_constraints = solvable_subst[a]
+
+                    n_constraints = [z3.simplify(z3.substitute(c, subst)) for c in constraints]
+                    n_ne_constraints = [z3.simplify(z3.substitute(c, subst)) for c in ne_constraints]
+                    n_extra_constraints = [z3.simplify(z3.substitute(c, subst)) for c in extra_constraints]
+                    n_extra_constraints.append(symread_eq(symread_substitute(sym_val, [(sym_hash, conc_hash)]), conc_val))
+                    n_extra_constraints.append(sym_hash == conc_hash)
+
+                    n_sha_constraints = {z3.substitute(sha, subst): symread_substitute(sha_value, subst) for
+                                 sha, sha_value in
+                                 sha_constraints.items() if sha is not sym_hash}
+
+                    s = z3.SolverFor("QF_ABV")
+                    s.add(n_constraints + n_ne_constraints + n_extra_constraints)
+
+                    if s.check() == z3.unsat:
+                        continue
+
+                    try:
+                        return check_and_model(n_constraints + n_extra_constraints, n_sha_constraints, n_ne_constraints, second_try=second_try)
+                    except IntractablePath:
+                        pass
+                    except UnresolvedConstraints as ex:
+                        unresolved = ex.unresolved
+
+                    next_solvable_subst[union] = (n_constraints, n_ne_constraints, n_extra_constraints, n_sha_constraints)
+
+            solvable_subst = next_solvable_subst
+            n += 1
+
+    if unresolved:
+        raise UnresolvedConstraints(unresolved)
+    else:
+        raise IntractablePath()
 
 
 def check_and_model(constraints, sha_constraints, ne_constraints, second_try=False):
