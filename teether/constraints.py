@@ -199,17 +199,17 @@ def check_model_and_resolve_inner(constraints, sha_constraints, sha_calcs=None, 
                     sym_hash, conc_hash = set(union.difference(a)).pop()
                     sym_val, conc_val = sha_constraints[sym_hash], sha_calcs[conc_hash]
                     subst = [(sym_hash, conc_hash),(sym_val,conc_val)]
-                    constraints, ne_constraints, n_extra_constraints, n_sha_constraints = solvable_subst[a]
+                    n_constraints, n_ne_constraints, n_extra_constraints, n_sha_constraints = solvable_subst[a]
 
-                    n_constraints = [z3.simplify(z3.substitute(c, subst)) for c in constraints]
-                    n_ne_constraints = [z3.simplify(z3.substitute(c, subst)) for c in ne_constraints]
-                    n_extra_constraints = [z3.simplify(z3.substitute(c, subst)) for c in extra_constraints]
+                    n_constraints = [z3.simplify(z3.substitute(c, subst)) for c in n_constraints]
+                    n_ne_constraints = [z3.simplify(z3.substitute(c, subst)) for c in n_ne_constraints]
+                    n_extra_constraints = [z3.simplify(z3.substitute(c, subst)) for c in n_extra_constraints]
                     n_extra_constraints.append(symread_eq(symread_substitute(sym_val, [(sym_hash, conc_hash)]), conc_val))
                     n_extra_constraints.append(sym_hash == conc_hash)
 
                     n_sha_constraints = {z3.substitute(sha, subst): symread_substitute(sha_value, subst) for
                                  sha, sha_value in
-                                 sha_constraints.items() if sha is not sym_hash}
+                                 n_sha_constraints.items() if sha is not sym_hash}
 
                     s = z3.SolverFor("QF_ABV")
                     s.add(n_constraints + n_ne_constraints + n_extra_constraints)

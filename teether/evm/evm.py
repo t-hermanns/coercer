@@ -28,7 +28,7 @@ class Context(object):
         self.storage = defaultdict(int)
 
 
-def run(program, state=None, code=None, ctx=None, check_initialized=False, trace=False, sha_save=None, stor_save=None):
+def run(program, state=None, code=None, ctx=None, check_initialized=False, trace=False, sha_save=None):
     ctx = ctx or Context()
     state = state or EVMState(code)
     state.memory.set_enforcing(check_initialized)
@@ -217,8 +217,6 @@ def run(program, state=None, code=None, ctx=None, check_initialized=False, trace
             elif op == 'SLOAD':
                 s0 = stk.pop()
                 stk.append(ctx.storage[s0])
-                if stor_save is not None:
-                    stor_save.append(s0)
             elif op == 'SSTORE':
                 s0, s1 = stk.pop(), stk.pop()
                 ctx.storage[s0] = s1
@@ -276,6 +274,7 @@ def run(program, state=None, code=None, ctx=None, check_initialized=False, trace
         elif op == 'RETURN':
             s0, s1 = stk.pop(), stk.pop()
             mem.extend(s0, s1)
+            state.return_value = teether.util.utils.bytes_to_int(mem[s0: s0 + s1])
             state.success = True
             return state
         # Revert opcode (Metropolis)
