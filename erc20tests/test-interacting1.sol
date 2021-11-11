@@ -25,4 +25,3 @@ contract InteractingContract{
     }
 
 }
-//eth.contract([{"constant": false,"inputs": [],"name": "sendTransferFrom","payable": false,"stateMutability": "nonpayable","outputs": [{"name": "","type": "string"}],"type": "function"}]).at("0x4000000000000000000000000000000000000001").sendTransferFrom()

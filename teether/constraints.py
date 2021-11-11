@@ -153,7 +153,7 @@ def check_model_and_resolve_inner(constraints, sha_constraints, sha_calcs=None, 
         else:
             break
 
-    unresolved = []
+    unresolved = None
     try:
         return check_and_model(constraints + extra_constraints, sha_constraints, ne_constraints, second_try=second_try)
     except IntractablePath:
@@ -191,13 +191,15 @@ def check_model_and_resolve_inner(constraints, sha_constraints, sha_calcs=None, 
 
         n = 2
         while n <= len(sha_constraints) and solvable_subst:
-            #print(n, solvable_subst.keys())
             next_solvable_subst = dict()
             for a, *b in itertools.combinations(solvable_subst,n):
                 union = a.union(*b)
                 if len(union) == n and not a.intersection(*b):
+
                     sym_hash, conc_hash = set(union.difference(a)).pop()
                     sym_val, conc_val = sha_constraints[sym_hash], sha_calcs[conc_hash]
+                    # this is the only subst pair that is in union, but not in a => apply it to a's constraints to get
+                    # union's constraints
                     subst = [(sym_hash, conc_hash),(sym_val,conc_val)]
                     n_constraints, n_ne_constraints, n_extra_constraints, n_sha_constraints = solvable_subst[a]
 
