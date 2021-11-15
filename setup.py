@@ -17,7 +17,7 @@ setup(
         'bin/replay_exploit.py',
     ],
     url='https://github.com/nescio007/teether',
-    python_requires='>=3.5',
+    python_requires='>=3.7',
     license='Apache 2.0',
     author='Johannes Krupp',
     author_email='johannes.krupp@cispa.saarland',

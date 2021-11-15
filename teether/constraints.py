@@ -162,7 +162,11 @@ def check_model_and_resolve_inner(constraints, sha_constraints, sha_calcs=None, 
         unresolved = ex.unresolved
 
     if sha_calcs and sha_constraints:
-        solvable_subst = dict()
+        index_to_symbolic = list(sha_constraints.keys())
+        symbolic_to_index = {sym_hash: i for i, sym_hash in enumerate(sha_constraints.keys())}
+        constraint_dict = dict()
+        solvable_subst = []
+        candidate_substitutions = defaultdict(list)
         for (conc_hash, conc_val), (sym_hash, sym_val) in itertools.product(sha_calcs.items(), sha_constraints.items()):
             subst = [(sym_hash, conc_hash),(sym_val,conc_val)]
             n_constraints = [z3.simplify(z3.substitute(c, subst)) for c in constraints]
@@ -187,47 +191,60 @@ def check_model_and_resolve_inner(constraints, sha_constraints, sha_calcs=None, 
             except UnresolvedConstraints as ex:
                 unresolved = ex.unresolved
 
-            solvable_subst[frozenset([(sym_hash, conc_hash)])] = (n_constraints, n_ne_constraints, n_extra_constraints, n_sha_constraints)
+            candidate_substitutions[sym_hash] += [conc_hash]
+            # no point in adding the last symbolic hash, there is no symbolic hash afterwards that can extend it
+            if sym_hash is not index_to_symbolic[-1]:
+                solvable_subst.append([(sym_hash, conc_hash)])
+                constraint_dict[frozenset([(sym_hash, conc_hash)])] = (n_constraints, n_ne_constraints, n_extra_constraints, n_sha_constraints)
 
+        neg_cache = set()
         n = 2
         while n <= len(sha_constraints) and solvable_subst:
-            next_solvable_subst = dict()
-            for a, *b in itertools.combinations(solvable_subst,n):
-                union = a.union(*b)
-                if len(union) == n and not a.intersection(*b):
+            next_solvable_subst = []
+            next_constraint_dict = dict()
+            for substlist in solvable_subst:
+                last_index = symbolic_to_index[substlist[-1][0]]
+                for i in range(last_index+1, len(sha_constraints)):
+                    sym_hash = index_to_symbolic[i]
+                    for conc_hash in candidate_substitutions[sym_hash]:
+                        unionlist = substlist + [(sym_hash, conc_hash)]
+                        if any([frozenset(unionlist).issuperset(neg) for neg in neg_cache]):
+                            continue
 
-                    sym_hash, conc_hash = set(union.difference(a)).pop()
-                    sym_val, conc_val = sha_constraints[sym_hash], sha_calcs[conc_hash]
-                    # this is the only subst pair that is in union, but not in a => apply it to a's constraints to get
-                    # union's constraints
-                    subst = [(sym_hash, conc_hash),(sym_val,conc_val)]
-                    n_constraints, n_ne_constraints, n_extra_constraints, n_sha_constraints = solvable_subst[a]
+                        sym_val, conc_val = sha_constraints[sym_hash], sha_calcs[conc_hash]
+                        subst = [(sym_hash, conc_hash),(sym_val,conc_val)]
+                        n_constraints, n_ne_constraints, \
+                            n_extra_constraints, n_sha_constraints = constraint_dict[frozenset(substlist)]
 
-                    n_constraints = [z3.simplify(z3.substitute(c, subst)) for c in n_constraints]
-                    n_ne_constraints = [z3.simplify(z3.substitute(c, subst)) for c in n_ne_constraints]
-                    n_extra_constraints = [z3.simplify(z3.substitute(c, subst)) for c in n_extra_constraints]
-                    n_extra_constraints.append(symread_eq(symread_substitute(sym_val, [(sym_hash, conc_hash)]), conc_val))
-                    n_extra_constraints.append(sym_hash == conc_hash)
+                        n_constraints = [z3.simplify(z3.substitute(c, subst)) for c in n_constraints]
+                        n_ne_constraints = [z3.simplify(z3.substitute(c, subst)) for c in n_ne_constraints]
+                        n_extra_constraints = [z3.simplify(z3.substitute(c, subst)) for c in n_extra_constraints]
+                        n_extra_constraints.append(symread_eq(symread_substitute(sym_val, [(sym_hash, conc_hash)]), conc_val))
+                        n_extra_constraints.append(sym_hash == conc_hash)
 
-                    n_sha_constraints = {z3.substitute(sha, subst): symread_substitute(sha_value, subst) for
-                                 sha, sha_value in
-                                 n_sha_constraints.items() if sha is not sym_hash}
+                        n_sha_constraints = {z3.substitute(sha, subst): symread_substitute(sha_value, subst) for
+                                    sha, sha_value in
+                                    n_sha_constraints.items() if sha is not sym_hash}
 
-                    s = z3.SolverFor("QF_ABV")
-                    s.add(n_constraints + n_ne_constraints + n_extra_constraints)
+                        s = z3.SolverFor("QF_ABV")
+                        s.add(n_constraints + n_ne_constraints + n_extra_constraints)
 
-                    if s.check() == z3.unsat:
-                        continue
+                        if s.check() == z3.unsat:
+                            neg_cache.add(frozenset(unionlist))
+                            continue
 
-                    try:
-                        return check_and_model(n_constraints + n_extra_constraints, n_sha_constraints, n_ne_constraints, second_try=second_try)
-                    except IntractablePath:
-                        pass
-                    except UnresolvedConstraints as ex:
-                        unresolved = ex.unresolved
+                        try:
+                            return check_and_model(n_constraints + n_extra_constraints, n_sha_constraints, n_ne_constraints, second_try=second_try)
+                        except IntractablePath:
+                            pass
+                        except UnresolvedConstraints as ex:
+                            unresolved = ex.unresolved
 
-                    next_solvable_subst[union] = (n_constraints, n_ne_constraints, n_extra_constraints, n_sha_constraints)
+                        if sym_hash is not index_to_symbolic[-1]:
+                            next_solvable_subst.append(unionlist)
+                            next_constraint_dict[frozenset(unionlist)] = (n_constraints, n_ne_constraints, n_extra_constraints, n_sha_constraints)
 
+            constraint_dict = next_constraint_dict
             solvable_subst = next_solvable_subst
             n += 1
 
