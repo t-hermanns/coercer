@@ -28,7 +28,7 @@ class Context(object):
         self.storage = defaultdict(int)
 
 
-def run(program, state=None, code=None, ctx=None, check_initialized=False, trace=False, sha_save=None):
+def run(program, state=None, code=None, ctx=None, check_initialized=False, trace=False, sha_save=None, chain=None):
     ctx = ctx or Context()
     state = state or EVMState(code)
     state.memory.set_enforcing(check_initialized)
@@ -216,6 +216,9 @@ def run(program, state=None, code=None, ctx=None, check_initialized=False, trace
                 mem[s0] = s1 % 256
             elif op == 'SLOAD':
                 s0 = stk.pop()
+                #print(s0)
+                if chain and s0 not in ctx.storage:
+                    ctx.storage.update(teether.util.utils.storage_from_chain([s0], chain, ctx.address))
                 stk.append(ctx.storage[s0])
             elif op == 'SSTORE':
                 s0, s1 = stk.pop(), stk.pop()

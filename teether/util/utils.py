@@ -10,6 +10,8 @@ TT256M1 = 2 ** 256 - 1
 TT255 = 2 ** 255
 SECP256K1P = 2 ** 256 - 4294968273
 
+def storage_from_chain(store_addresses, chain, contract_addr):
+    return {x: bytes_to_int(chain.eth.getStorageAt(contract_addr, hex(x))) for x in store_addresses}
 
 def big_endian_to_int(x):
     return int.from_bytes(x, byteorder='big')
