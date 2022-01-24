@@ -1,6 +1,6 @@
 pragma solidity ^0.4.0;
 
-contract NonVulnerableToken{
+contract VulnerableToken{
 
     uint public _totalSupply = 10000;
     mapping(address => uint256) balances;
@@ -9,7 +9,7 @@ contract NonVulnerableToken{
     event Transfer(address indexed from, address indexed to, uint tokens);
     event Approval(address indexed tokenOwner, address indexed spender, uint tokens);
 
-    function _totalSupply() public constant returns (uint){
+    function totalSupply() public constant returns (uint){
         return _totalSupply;
     }
 
@@ -42,6 +42,20 @@ contract NonVulnerableToken{
         allowed[owner][msg.sender] = allowed[owner][msg.sender] - numTokens;
         balances[buyer] = balances[buyer] + numTokens;
         emit Transfer(owner, buyer, numTokens);
+        return true;
+    }
+
+    function batchTransfer(address[] _receivers, uint _value) public returns (bool) {
+        uint cnt = _receivers.length;
+        uint amount = uint(cnt) * _value;
+        require(cnt > 0 && cnt <= 20);
+        require(_value > 0 && balances[msg.sender] >= amount);
+
+        balances[msg.sender] = balances[msg.sender] - amount;
+        for (uint i = 0; i < cnt; i++) {
+            balances[_receivers[i]] = balances[_receivers[i]] + _value;
+            emit Transfer(msg.sender, _receivers[i], _value);
+        }
         return true;
     }
 }
